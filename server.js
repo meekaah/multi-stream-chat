@@ -1,11 +1,17 @@
+require('dotenv').config();
 const express = require('express');
-const { WebSocketServer } = require('ws');
+const { WebSocketServer, WebSocket } = require('ws');
 const http = require('http');
 const path = require('path');
+const fs   = require('fs');
 
-const TWITCH_CHANNEL = 'mr_iarbin';
-const YOUTUBE_HANDLE = '@TestLive69latrick';
+const TWITCH_CHANNEL = process.env.TWITCH_CHANNEL  || '';
+const YOUTUBE_HANDLE = process.env.YOUTUBE_HANDLE  || '';
 const PORT = 3000;
+
+// ── Twitch PubSub config — set in .env (see .env.example) ───────────────────
+const TWITCH_CLIENT_ID     = process.env.TWITCH_CLIENT_ID     || '';
+const TWITCH_CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET || '';
 
 const YT_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -17,6 +23,29 @@ const YT_HEADERS = {
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
+
+// Expose config to the browser — client.js reads window.TWITCH_CHANNEL from here
+app.get('/config.js', (_req, res) => {
+  res.type('application/javascript');
+  res.send(`window.TWITCH_CHANNEL = ${JSON.stringify(TWITCH_CHANNEL)};`);
+});
+
+// OAuth callback — Twitch redirects here after user authorizes
+app.get('/auth/callback', async (req, res) => {
+  const { code, error } = req.query;
+  if (error || !code) {
+    res.send(`<p>Auth failed: ${error || 'no code received'}</p>`);
+    return;
+  }
+  try {
+    const data = await exchangeCode(code);
+    saveToken(data);
+    res.send('<html><body style="font-family:sans-serif;padding:2rem;background:#0e0e10;color:#efeff1"><h2>✅ Authorized!</h2><p>MultiChat will connect to PubSub now.</p><a href="/" style="display:inline-block;margin-top:1rem;padding:0.6rem 1.4rem;background:#9146ff;color:#fff;text-decoration:none;border-radius:6px;font-weight:700">Go to chat!</a></body></html>');
+    if (_pendingAuthResolve) { _pendingAuthResolve(data.access_token); _pendingAuthResolve = null; }
+  } catch (e) {
+    res.send(`<p>Error: ${e.message}</p>`);
+  }
+});
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -270,10 +299,174 @@ function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
 }
 
+// ── Twitch PubSub — token management ────────────────────────────────────────
+
+const TOKEN_FILE = path.join(__dirname, '.twitch-token.json');
+let _pendingAuthResolve = null;
+
+function loadStoredToken() {
+  try { return JSON.parse(fs.readFileSync(TOKEN_FILE, 'utf8')); }
+  catch { return null; }
+}
+
+function saveToken(data) {
+  const record = {
+    access_token:  data.access_token,
+    refresh_token: data.refresh_token,
+    expires_at:    Date.now() + (data.expires_in ?? 14400) * 1000,
+  };
+  fs.writeFileSync(TOKEN_FILE, JSON.stringify(record, null, 2));
+  return record;
+}
+
+async function exchangeCode(code) {
+  const res = await fetch('https://id.twitch.tv/oauth2/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id:    TWITCH_CLIENT_ID,
+      client_secret: TWITCH_CLIENT_SECRET,
+      code,
+      grant_type:   'authorization_code',
+      redirect_uri: `http://localhost:${PORT}/auth/callback`,
+    }),
+  });
+  const json = await res.json();
+  if (!json.access_token) throw new Error(json.message || 'Code exchange failed');
+  return json;
+}
+
+async function refreshToken(storedRefresh) {
+  const res = await fetch('https://id.twitch.tv/oauth2/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id:     TWITCH_CLIENT_ID,
+      client_secret: TWITCH_CLIENT_SECRET,
+      refresh_token: storedRefresh,
+      grant_type:    'refresh_token',
+    }),
+  });
+  const json = await res.json();
+  if (!json.access_token) throw new Error(json.message || 'Refresh failed');
+  return json;
+}
+
+async function getValidToken() {
+  const stored = loadStoredToken();
+
+  if (stored?.refresh_token) {
+    // If access token still valid (5-min buffer), use it directly
+    if (stored.expires_at && Date.now() < stored.expires_at - 300_000) {
+      return stored.access_token;
+    }
+    // Try refresh
+    try {
+      console.log('[PubSub] Refreshing access token...');
+      const data = await refreshToken(stored.refresh_token);
+      return saveToken({ ...data, refresh_token: data.refresh_token || stored.refresh_token }).access_token;
+    } catch (e) {
+      console.error('[PubSub] Refresh failed:', e.message, '— re-auth required');
+    }
+  }
+
+  // No stored token or refresh failed — need user to authorize once
+  const authUrl = `https://id.twitch.tv/oauth2/authorize?client_id=${TWITCH_CLIENT_ID}`
+    + `&redirect_uri=${encodeURIComponent(`http://localhost:${PORT}/auth/callback`)}`
+    + `&response_type=code&scope=channel:read:redemptions`;
+  console.log('\n[PubSub] Authorization required. Open this URL in your browser:');
+  console.log(`  ${authUrl}\n`);
+
+  return new Promise(resolve => { _pendingAuthResolve = resolve; });
+}
+
+// ── Twitch PubSub — connection ───────────────────────────────────────────────
+
+async function getTwitchUserId(login, token) {
+  const res = await fetch(`https://api.twitch.tv/helix/users?login=${login}`, {
+    headers: { 'Authorization': `Bearer ${token}`, 'Client-Id': TWITCH_CLIENT_ID },
+  });
+  const json = await res.json();
+  if (json.error) throw new Error(`Helix error: ${json.message}`);
+  return json?.data?.[0]?.id ?? null;
+}
+
+function connectPubSub(channelId, token) {
+  const ws = new WebSocket('wss://pubsub-edge.twitch.tv');
+  let pingTimer;
+
+  ws.on('open', () => {
+    ws.send(JSON.stringify({
+      type: 'LISTEN',
+      nonce: 'mc-rewards',
+      data: { topics: [`channel-points-channel-v1.${channelId}`], auth_token: token },
+    }));
+    pingTimer = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'PING' }));
+    }, 240_000);
+    console.log('[PubSub] Connected');
+  });
+
+  ws.on('message', (raw) => {
+    try {
+      const msg = JSON.parse(raw);
+      if (msg.type === 'PONG') return;
+      if (msg.type === 'RECONNECT') { ws.close(); return; }
+      if (msg.type === 'RESPONSE') {
+        if (msg.error) console.error('[PubSub] LISTEN error:', msg.error);
+        else console.log('[PubSub] Listening for channel point redemptions');
+        return;
+      }
+      if (msg.type !== 'MESSAGE') return;
+
+      const inner = JSON.parse(msg.data.message);
+      if (inner.type !== 'reward-redeemed') return;
+
+      const r = inner.data.redemption;
+      broadcast({
+        type: 'twitch-reward',
+        user:       r.user.display_name,
+        rewardName: r.reward.title,
+        cost:       r.reward.cost,
+        input:      r.user_input || '',
+        timestamp:  Date.now(),
+      });
+    } catch (e) {
+      console.error('[PubSub] Parse error:', e.message);
+    }
+  });
+
+  ws.on('close', () => {
+    clearInterval(pingTimer);
+    console.log('[PubSub] Disconnected — reconnecting in 5s...');
+    // Get a fresh token on reconnect in case the old one expired
+    setTimeout(() => initPubSub(), 5000);
+  });
+
+  ws.on('error', (e) => console.error('[PubSub] Error:', e.message));
+}
+
+async function initPubSub() {
+  if (!TWITCH_CLIENT_ID || !TWITCH_CLIENT_SECRET) {
+    console.log('[PubSub] Not configured — add TWITCH_CLIENT_ID + TWITCH_CLIENT_SECRET to enable rewards');
+    return;
+  }
+  try {
+    const token = await getValidToken();
+    const id = await getTwitchUserId(TWITCH_CHANNEL, token);
+    if (!id) throw new Error('Channel not found');
+    console.log(`[PubSub] Resolved ${TWITCH_CHANNEL} → channel ID ${id}`);
+    connectPubSub(id, token);
+  } catch (e) {
+    console.error('[PubSub] Init failed:', e.message);
+  }
+}
+
 // ── Start ────────────────────────────────────────────────────────────────────
 
 server.listen(PORT, () => {
   console.log(`MultiChat running → http://localhost:${PORT}`);
   console.log(`Twitch: #${TWITCH_CHANNEL}  |  YouTube: ${YOUTUBE_HANDLE}`);
   monitorYoutube();
+  initPubSub();
 });

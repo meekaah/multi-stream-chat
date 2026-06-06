@@ -225,6 +225,13 @@ body {
   border-left: 3px solid #7b9cff;
 }
 
+.event-reward {
+  background: #1a1020;
+  border-left: 3px solid #c084fc;
+}
+
+.event-reward .event-icon { color: #c084fc; }
+
 .event-icon {
   flex-shrink: 0;
   font-size: 0.9rem;
