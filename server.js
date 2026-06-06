@@ -150,9 +150,12 @@ function pickContinuation(cont) {
 
 // ── YouTube: poll live chat ──────────────────────────────────────────────────
 
+// YouTube's own public web client key — not a secret, embedded in youtube.com itself
+const YT_API_KEY = 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8';
+
 async function pollLiveChat(token, videoId) {
   const res = await fetch(
-    'https://www.youtube.com/youtubei/v1/live_chat/get_live_chat?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8',
+    `https://www.youtube.com/youtubei/v1/live_chat/get_live_chat?key=${YT_API_KEY}`,
     {
       method: 'POST',
       headers: {
