@@ -1,0 +1,269 @@
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --bg: #0e0e10;
+  --surface: #18181b;
+  --border: #2d2d35;
+  --text: #efeff1;
+  --muted: #adadb8;
+  --twitch: #9146ff;
+  --youtube: #ff0000;
+  --green: #00c853;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* ── Status bar ─────────────────────────────────────────────────────────── */
+
+#status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.app-title {
+  font-weight: 800;
+  font-size: 0.85rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  min-width: 0;
+}
+
+.platform-logo {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.twitch-logo { fill: var(--twitch); }
+.youtube-logo { fill: var(--youtube); }
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--border);
+  flex-shrink: 0;
+  transition: background 0.3s, box-shadow 0.3s;
+}
+
+.dot.online {
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+}
+
+.dot.offline {
+  background: #555;
+}
+
+/* ── Chat container ─────────────────────────────────────────────────────── */
+
+#chat-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+#chat-container::-webkit-scrollbar { width: 5px; }
+#chat-container::-webkit-scrollbar-track { background: var(--bg); }
+#chat-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+#chat-container::-webkit-scrollbar-thumb:hover { background: #444; }
+
+/* ── Messages ───────────────────────────────────────────────────────────── */
+
+.msg {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 3px 12px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.msg:hover { background: #1a1a1f; }
+
+.msg-icon {
+  flex-shrink: 0;
+  position: relative;
+  top: 1px;
+  width: 11px;
+  height: 11px;
+}
+
+.msg-icon svg {
+  width: 11px;
+  height: 11px;
+}
+
+.msg-icon.twitch svg { fill: var(--twitch); }
+.msg-icon.youtube svg { fill: var(--youtube); }
+
+.username {
+  font-weight: 700;
+  flex-shrink: 0;
+  cursor: default;
+}
+
+.sep {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.text {
+  color: var(--text);
+  word-break: break-word;
+  min-width: 0;
+}
+
+/* ── System messages ────────────────────────────────────────────────────── */
+
+.sys-msg {
+  padding: 5px 12px;
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* ── Emotes ─────────────────────────────────────────────────────────────── */
+
+.emote-img {
+  height: 22px;
+  width: auto;
+  vertical-align: middle;
+  margin: 0 1px;
+  image-rendering: -webkit-optimize-contrast;
+}
+
+/* ── Bits badge ─────────────────────────────────────────────────────────── */
+
+.bits-badge {
+  display: inline-block;
+  background: #1a1a4e;
+  color: #7b9cff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+  border: 1px solid #3a3a8e;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+/* ── Channel point reward ───────────────────────────────────────────────── */
+
+.reward-msg {
+  background: #1a1520;
+  border-left: 2px solid #8a2be2;
+}
+
+.reward-msg:hover { background: #201a28; }
+
+.reward-badge {
+  color: #c084fc;
+  font-size: 0.8rem;
+  margin-right: 2px;
+}
+
+/* ── Event rows (subs, raids, bits badges) ──────────────────────────────── */
+
+.event-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 12px;
+  margin: 2px 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  border-radius: 4px;
+}
+
+.event-sub {
+  background: #1a1030;
+  border-left: 3px solid var(--twitch);
+}
+
+.event-raid {
+  background: #1a1200;
+  border-left: 3px solid #f5a623;
+}
+
+.event-bits {
+  background: #0d1a2e;
+  border-left: 3px solid #7b9cff;
+}
+
+.event-icon {
+  flex-shrink: 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.event-sub    .event-icon { color: var(--twitch); }
+.event-raid   .event-icon { color: #f5a623; }
+.event-bits   .event-icon { color: #7b9cff; }
+
+.event-main { min-width: 0; word-break: break-word; }
+
+.event-user {
+  font-weight: 700;
+}
+
+.event-sys {
+  color: var(--text);
+}
+
+.event-msg {
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* ── Scroll hint ────────────────────────────────────────────────────────── */
+
+#scroll-hint {
+  position: fixed;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #222;
+  color: var(--muted);
+  font-size: 0.7rem;
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  pointer-events: none;
+}
+
+#scroll-hint.hidden { display: none; }
