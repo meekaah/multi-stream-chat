@@ -42,6 +42,19 @@ body {
   gap: 8px;
 }
 
+.status-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.status-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .app-title {
   font-weight: 800;
   font-size: 0.85rem;
@@ -255,6 +268,135 @@ body {
 .event-msg {
   color: var(--muted);
   font-style: italic;
+}
+
+/* ── Raffle button + trigger input ─────────────────────────────────────── */
+
+#trigger-word {
+  width: 52px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 0.75rem;
+  padding: 3px 6px;
+  text-align: center;
+  outline: none;
+}
+
+#trigger-word:focus { border-color: #555; }
+
+#entry-count {
+  font-size: 0.72rem;
+  color: #c084fc;
+  font-weight: 700;
+  min-width: 24px;
+  text-align: center;
+}
+
+#raffle-btn {
+  background: #2a1a4a;
+  color: #c084fc;
+  border: 1px solid #5b2d9e;
+  border-radius: 5px;
+  padding: 4px 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+#raffle-btn:hover { background: #3a2060; }
+
+#raffle-btn.active {
+  background: #9146ff;
+  color: #fff;
+  border-color: #9146ff;
+}
+
+#raffle-btn.active:hover { background: #7c3aed; }
+
+/* ── Winner overlay ──────────────────────────────────────────────────────── */
+
+#winner-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(4px);
+}
+
+#winner-overlay.hidden { display: none; }
+
+#winner-card {
+  position: relative;
+  background: #18181b;
+  border: 2px solid #9146ff;
+  border-radius: 16px;
+  padding: 2.5rem 3rem;
+  text-align: center;
+  min-width: 280px;
+  box-shadow: 0 0 60px rgba(145, 70, 255, 0.35);
+  animation: pop-in 0.2s ease-out;
+}
+
+@keyframes pop-in {
+  from { transform: scale(0.85); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+
+#winner-close {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 2px 4px;
+}
+
+#winner-close:hover { color: var(--text); }
+
+.winner-trophy {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.winner-label {
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.75rem;
+}
+
+.winner-platform {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.6rem;
+}
+
+.winner-platform.twitch  { background: #9146ff; color: #fff; }
+.winner-platform.youtube { background: #ff0000; color: #fff; }
+
+#winner-name {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--text);
+  word-break: break-word;
+  margin-top: 0.4rem;
 }
 
 /* ── Scroll hint ────────────────────────────────────────────────────────── */

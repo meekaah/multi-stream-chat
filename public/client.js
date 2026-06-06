@@ -3,12 +3,20 @@ const TWITCH_CHANNEL = window.TWITCH_CHANNEL;
 const TWITCH_SVG = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/></svg>`;
 const YOUTUBE_SVG = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M23.495 6.205a3.007 3.007 0 0 0-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 0 0 .527 6.205a31.247 31.247 0 0 0-.522 5.805 31.247 31.247 0 0 0 .522 5.783 3.007 3.007 0 0 0 2.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 0 0 2.088-2.088 31.247 31.247 0 0 0 .5-5.783 31.247 31.247 0 0 0-.5-5.805zM9.609 15.601V8.408l6.264 3.602z"/></svg>`;
 
-const chatEl   = document.getElementById('chat-container');
+const chatEl      = document.getElementById('chat-container');
 const twitchDot   = document.getElementById('twitch-dot');
 const twitchLabel = document.getElementById('twitch-label');
-const youtubeDot   = document.getElementById('youtube-dot');
+const youtubeDot  = document.getElementById('youtube-dot');
 const youtubeLabel = document.getElementById('youtube-label');
-const scrollHint   = document.getElementById('scroll-hint');
+const scrollHint  = document.getElementById('scroll-hint');
+
+const raffleBtnEl   = document.getElementById('raffle-btn');
+const triggerWordEl = document.getElementById('trigger-word');
+const entryCountEl  = document.getElementById('entry-count');
+const winnerOverlay = document.getElementById('winner-overlay');
+const winnerNameEl  = document.getElementById('winner-name');
+const winnerBadgeEl = document.getElementById('winner-badge');
+const winnerCloseEl = document.getElementById('winner-close');
 
 // ── Scroll management ────────────────────────────────────────────────────────
 
@@ -163,6 +171,12 @@ function addMessage(platform, user, textOrRuns, opts = {}) {
 
   row.append(icon, name, sep, body);
   appendRow(row);
+
+  // Raffle entry check
+  const rawText = Array.isArray(textOrRuns)
+    ? textOrRuns.filter(r => r.t === 'text').map(r => r.v).join('')
+    : textOrRuns;
+  checkRaffleEntry(platform, user, rawText);
 }
 
 // ── Twitch event notifications (subs, raids, bits badges) ───────────────────
@@ -382,3 +396,55 @@ function connectServer() {
 
 connectTwitch();
 connectServer();
+
+// ── Raffle ───────────────────────────────────────────────────────────────────
+
+let raffleActive = false;
+const raffleEntries = new Map(); // key: `${platform}:${user_lower}` → {user, platform}
+
+raffleBtnEl.addEventListener('click', () => {
+  if (!raffleActive) {
+    raffleEntries.clear();
+    raffleActive = true;
+    raffleBtnEl.textContent = 'Choisir gagnant';
+    raffleBtnEl.classList.add('active');
+    entryCountEl.textContent = '0 participants';
+    entryCountEl.classList.remove('hidden');
+  } else {
+    if (raffleEntries.size === 0) return;
+    const entries = [...raffleEntries.values()];
+    const winner = entries[Math.floor(Math.random() * entries.length)];
+    raffleEntries.clear();
+    raffleActive = false;
+    raffleBtnEl.textContent = 'Tirage au sort';
+    raffleBtnEl.classList.remove('active');
+    entryCountEl.textContent = '0 participants';
+    entryCountEl.classList.add('hidden');
+    showWinner(winner);
+  }
+});
+
+function checkRaffleEntry(platform, user, text) {
+  if (!raffleActive) return;
+  const trigger = (triggerWordEl.value || '+1').trim();
+  if (!trigger) return;
+  if (text.trim().toLowerCase() === trigger.toLowerCase()) {
+    const key = `${platform}:${user.toLowerCase()}`;
+    if (!raffleEntries.has(key)) {
+      raffleEntries.set(key, { user, platform });
+      entryCountEl.textContent = `${raffleEntries.size} participant${raffleEntries.size > 1 ? 's' : ''}`;
+    }
+  }
+}
+
+function showWinner({ user, platform }) {
+  winnerNameEl.textContent = user;
+  winnerBadgeEl.textContent = platform === 'twitch' ? 'Twitch' : 'YouTube';
+  winnerBadgeEl.className = `winner-platform ${platform}`;
+  winnerOverlay.classList.remove('hidden');
+}
+
+winnerCloseEl.addEventListener('click', () => winnerOverlay.classList.add('hidden'));
+winnerOverlay.addEventListener('click', (e) => {
+  if (e.target === winnerOverlay) winnerOverlay.classList.add('hidden');
+});
