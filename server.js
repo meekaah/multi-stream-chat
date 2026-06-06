@@ -242,7 +242,6 @@ async function startYoutubeChat(videoId) {
   ytRunning = true;
   currentVideoId = videoId;
   console.log(`[YouTube] Live stream: https://www.youtube.com/watch?v=${videoId}`);
-  broadcast({ type: 'status', youtube: 'live', videoId });
 
   let token;
   try {
@@ -256,6 +255,7 @@ async function startYoutubeChat(videoId) {
     return;
   }
 
+  broadcast({ type: 'status', youtube: 'live', videoId });
   console.log('[YouTube] Chat connected, polling...');
 
   while (token) {
